@@ -51,8 +51,7 @@ export default function TranscriptionClient() {
       console.log('✅ Microphone access granted');
 
       // Step 3: Connect WebSocket
-      const encounterId = `encounter-${Date.now()}`;
-      const wsUrl = `wss://stt.scribemd.ai/v1/listen?access_token=${encodeURIComponent(wsToken.access_token)}&encounter_id=${encounterId}&language=${language}&service=${service}`;
+      const wsUrl = `wss://stt.scribemd.ai/v1/listen?access_token=${encodeURIComponent(wsToken.access_token)}&language=${language}&service=${service}`;
 
       console.log('Connecting to WebSocket...');
       console.log('WebSocket URL:', wsUrl.replace(wsToken.access_token, '***TOKEN***'));

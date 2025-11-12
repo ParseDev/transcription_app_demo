@@ -59,17 +59,16 @@ Content-Type: application/json
 
 **WebSocket URL:**
 ```
-wss://stt.scribemd.ai/v1/listen?access_token={token}&encounter_id={id}&language={lang}&service={provider}
+wss://stt.scribemd.ai/v1/listen?access_token={token}&language={lang}&service={provider}
 ```
 
 **Example:**
 ```
-wss://stt.scribemd.ai/v1/listen?access_token=ws-67844d680dfa27...&encounter_id=encounter-1731348332952&language=en-US&service=deepgram
+wss://stt.scribemd.ai/v1/listen?access_token=ws-67844d680dfa27...&language=en-US&service=deepgram
 ```
 
 **Query Parameters:**
 - `access_token` - WebSocket token from auth endpoint (required)
-- `encounter_id` - Unique session identifier (required)
 - `language` - Language code: `en-US`, `en-GB`, `es-ES`, `fr-FR`, `de-DE` (required)
 - `service` - Provider: `deepgram`, `aws`, `azure` (required)
 
