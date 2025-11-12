@@ -69,7 +69,9 @@ wss://stt.scribemd.ai/v1/listen?access_token=ws-67844d680dfa27...&language=en-US
 
 **Query Parameters:**
 - `access_token` - WebSocket token from auth endpoint (required)
-- `language` - Language code: `en-US`, `en-GB`, `es-ES`, `fr-FR`, `de-DE` (required)
+- `language` - Language code (required):
+  - All providers: `en-US`, `en-GB`, `es-ES`, `fr-FR`, `de-DE`
+  - Azure only: `he-IL` (Hebrew), `ar-SA` (Arabic)
 - `service` - Provider: `deepgram`, `aws`, `azure` (required)
 
 ---
@@ -114,28 +116,26 @@ processor.onaudioprocess = (e) => {
 **Interim Transcript (partial result):**
 ```json
 {
-  "channel": {
-    "alternatives": [
-      {
-        "transcript": "hello this is"
-      }
-    ]
-  },
-  "is_final": false
+  "service": "deepgram",
+  "transcription": "hello this is",
+  "is_final": false,
+  "speech_final": false,
+  "start_time": 1.16,
+  "speaker": null,
+  "language": "en-US"
 }
 ```
 
 **Final Transcript (complete result):**
 ```json
 {
-  "channel": {
-    "alternatives": [
-      {
-        "transcript": "hello this is a test."
-      }
-    ]
-  },
-  "is_final": true
+  "service": "deepgram",
+  "transcription": "hello this is a test.",
+  "is_final": true,
+  "speech_final": true,
+  "start_time": 1.16,
+  "speaker": null,
+  "language": "en-US"
 }
 ```
 
@@ -167,8 +167,8 @@ processor.onaudioprocess = (e) => {
    ws.send(pcmData.buffer) // 8192 bytes of Int16 PCM
    ↓
 6. Backend sends transcription results
-   ← { channel: { alternatives: [{ transcript: "..." }] }, is_final: false }
-   ← { channel: { alternatives: [{ transcript: "..." }] }, is_final: true }
+   ← { service: "deepgram", transcription: "...", is_final: false }
+   ← { service: "deepgram", transcription: "...", is_final: true }
    ↓
 7. App displays transcripts in UI
 ```

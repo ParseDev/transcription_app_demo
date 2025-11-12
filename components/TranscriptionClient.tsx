@@ -9,7 +9,7 @@ export default function TranscriptionClient() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [transcript, setTranscript] = useState<string[]>([]);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
-  const [service, setService] = useState<'deepgram' | 'aws' | 'azure'>('deepgram');
+  const [service, setService] = useState<'deepgram' | 'aws' | 'azure'>('azure');
   const [language, setLanguage] = useState<string>('en-US');
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -83,8 +83,8 @@ export default function TranscriptionClient() {
             return;
           }
 
-          // Extract transcript
-          const transcript = data.channel?.alternatives?.[0]?.transcript;
+          // Extract transcript (backend sends "transcription" field)
+          const transcript = data.transcription;
           console.log('📝 Extracted transcript:', transcript, 'is_final:', data.is_final);
 
           if (transcript) {
@@ -240,7 +240,7 @@ export default function TranscriptionClient() {
             Live Transcription Demo
           </h1>
           <p className="text-gray-600 mb-8">
-            Using Deepgram SDK Wrapper with Multi-Provider Support
+            Real-time speech transcription with multi-provider support
           </p>
 
           {/* Settings */}
@@ -276,6 +276,12 @@ export default function TranscriptionClient() {
                 <option value="es-ES">Spanish</option>
                 <option value="fr-FR">French</option>
                 <option value="de-DE">German</option>
+                {service === 'azure' && (
+                  <>
+                    <option value="he-IL">Hebrew</option>
+                    <option value="ar-SA">Arabic</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
