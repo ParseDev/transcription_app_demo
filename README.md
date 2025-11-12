@@ -1,36 +1,208 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Real-Time Transcription Demo
 
-## Getting Started
+Next.js app that streams microphone audio to a WebSocket backend for real-time transcription.
 
-First, run the development server:
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+# Install dependencies
+bun install
+
+# Run development server
 bun dev
+
+# Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local` (optional - has defaults):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://staging.scribemd.com
+NEXT_PUBLIC_BEARER_TOKEN=sm-874a6b0368632f1c3d711278ccfdaeb7462847facd6a4c2f
+```
 
-## Learn More
+## Authentication Flow
 
-To learn more about Next.js, take a look at the following resources:
+### Step 1: Fetch WebSocket Token
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Endpoint:** `POST https://staging.scribemd.com/api/v1/auth/grant`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Request:**
+```bash
+POST /api/v1/auth/grant
+Authorization: Bearer sm-874a6b0368632f1c3d711278ccfdaeb7462847facd6a4c2f
+Content-Type: application/json
 
-## Deploy on Vercel
+{
+  "type": "websocket"
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Response:**
+```json
+{
+  "access_token": "ws-67844d680dfa27e493049d80b06037d9b0c37bfeda1a5a5eb2ca13e02c2a387f",
+  "expires_at": "2025-11-11T02:50:43.291Z",
+  "key_type": "websocket"
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Token Caching:** Token is cached in memory and reused until expired.
+
+---
+
+## WebSocket Connection
+
+### Step 2: Connect to Transcription Service
+
+**WebSocket URL:**
+```
+wss://stt.scribemd.ai/v1/listen?access_token={token}&encounter_id={id}&language={lang}&service={provider}
+```
+
+**Example:**
+```
+wss://stt.scribemd.ai/v1/listen?access_token=ws-67844d680dfa27...&encounter_id=encounter-1731348332952&language=en-US&service=deepgram
+```
+
+**Query Parameters:**
+- `access_token` - WebSocket token from auth endpoint (required)
+- `encounter_id` - Unique session identifier (required)
+- `language` - Language code: `en-US`, `en-GB`, `es-ES`, `fr-FR`, `de-DE` (required)
+- `service` - Provider: `deepgram`, `aws`, `azure` (required)
+
+---
+
+## Audio Streaming
+
+### Step 3: Stream Raw PCM Audio
+
+**Audio Format:**
+- **Type:** Raw PCM (Int16Array)
+- **Sample Rate:** 16,000 Hz
+- **Channels:** 1 (mono)
+- **Bit Depth:** 16-bit signed integer
+- **Byte Order:** Little-endian
+- **Chunk Size:** 4096 samples (~8192 bytes per chunk)
+
+**Implementation:**
+```typescript
+// Browser sends raw PCM data via WebSocket
+const audioContext = new AudioContext({ sampleRate: 16000 });
+const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+processor.onaudioprocess = (e) => {
+  const inputData = e.inputBuffer.getChannelData(0); // Float32Array
+  const pcmData = new Int16Array(inputData.length);
+
+  // Convert Float32 [-1.0, 1.0] to Int16 [-32768, 32767]
+  for (let i = 0; i < inputData.length; i++) {
+    pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+  }
+
+  websocket.send(pcmData.buffer); // Send binary PCM data
+};
+```
+
+---
+
+## WebSocket Messages (from Backend)
+
+### Message Format
+
+**Interim Transcript (partial result):**
+```json
+{
+  "channel": {
+    "alternatives": [
+      {
+        "transcript": "hello this is"
+      }
+    ]
+  },
+  "is_final": false
+}
+```
+
+**Final Transcript (complete result):**
+```json
+{
+  "channel": {
+    "alternatives": [
+      {
+        "transcript": "hello this is a test."
+      }
+    ]
+  },
+  "is_final": true
+}
+```
+
+**Error Message:**
+```json
+{
+  "error": "Invalid token"
+}
+```
+
+---
+
+## Complete Flow Example
+
+```
+1. User clicks "Start Transcription"
+   ↓
+2. App fetches WebSocket token
+   POST /api/v1/auth/grant
+   → { access_token: "ws-...", expires_at: "...", key_type: "websocket" }
+   ↓
+3. App requests microphone access
+   navigator.mediaDevices.getUserMedia({ audio: true })
+   ↓
+4. App connects WebSocket
+   wss://stt.scribemd.ai/v1/listen?access_token=ws-...&service=deepgram&...
+   ↓
+5. App streams raw PCM audio (every ~256ms)
+   ws.send(pcmData.buffer) // 8192 bytes of Int16 PCM
+   ↓
+6. Backend sends transcription results
+   ← { channel: { alternatives: [{ transcript: "..." }] }, is_final: false }
+   ← { channel: { alternatives: [{ transcript: "..." }] }, is_final: true }
+   ↓
+7. App displays transcripts in UI
+```
+
+---
+
+## Response Codes
+
+### HTTP API
+- `200 OK` - Token fetched successfully
+- `401 Unauthorized` - Invalid bearer token
+- `404 Not Found` - Endpoint not found
+- `500 Internal Server Error` - Server error
+
+### WebSocket
+- `101 Switching Protocols` - Connection established
+- `403 Forbidden` - Invalid access token
+- `1000 Normal Closure` - Clean disconnect
+- `1006 Abnormal Closure` - Connection dropped
+
+---
+
+## Troubleshooting
+
+**No transcription results?**
+- Check browser console for WebSocket messages
+- Verify microphone is active (check audio chunks in logs)
+- Confirm backend receives PCM audio (check backend logs)
+
+**401 Unauthorized?**
+- Verify `NEXT_PUBLIC_BEARER_TOKEN` is correct
+- Check token hasn't expired
+
+**WebSocket closes immediately?**
+- Verify `access_token` query parameter is present
+- Check backend logs for validation errors
