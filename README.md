@@ -19,7 +19,7 @@ bun dev
 Create `.env.local` (optional - has defaults):
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://staging.scribemd.com
+NEXT_PUBLIC_API_BASE_URL=https://api.scribemd.com
 NEXT_PUBLIC_BEARER_TOKEN=sm-874a6b0368632f1c3d711278ccfdaeb7462847facd6a4c2f
 ```
 
@@ -27,7 +27,7 @@ NEXT_PUBLIC_BEARER_TOKEN=sm-874a6b0368632f1c3d711278ccfdaeb7462847facd6a4c2f
 
 ### Step 1: Fetch WebSocket Token
 
-**Endpoint:** `POST https://staging.scribemd.com/api/v1/auth/grant`
+**Endpoint:** `POST https://api.scribemd.com/api/v1/auth/grant`
 
 **Request:**
 ```bash
