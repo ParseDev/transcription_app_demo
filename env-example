@@ -1,0 +1,12 @@
+# ScribeMD API Configuration
+# Copy this file to .env and update the values
+
+# ScribeMD API Base URL
+NEXT_PUBLIC_API_BASE_URL=https://api.scribemd.ai
+
+# ScribeMD Bearer Token for authentication
+# This token is used to request WebSocket tokens from the /api/v1/auth/grant endpoint
+NEXT_PUBLIC_BEARER_TOKEN=SCRIBEMD_API_KEY
+
+# WebSocket Transcription Server URL (no need to change unless using different server)
+# The app will connect to wss://stt.scribemd.ai/v1/listen

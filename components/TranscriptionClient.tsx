@@ -9,8 +9,10 @@ export default function TranscriptionClient() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [transcript, setTranscript] = useState<string[]>([]);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
-  const [service, setService] = useState<'deepgram' | 'aws' | 'azure'>('azure');
+  const [service, setService] = useState<'deepgram' | 'aws' | 'azure' | 'scribemd'>('scribemd');
   const [language, setLanguage] = useState<string>('en-US');
+  const [sttContext, setSttContext] = useState<string>('');
+  const [customTerms, setCustomTerms] = useState<string>('');
 
   const wsRef = useRef<WebSocket | null>(null);
   const wsTokenRef = useRef<WebSocketToken | null>(null);
@@ -67,6 +69,22 @@ export default function TranscriptionClient() {
           protocol: ws.protocol,
           extensions: ws.extensions,
         });
+
+        // Send STT context payload as first message
+        const terms = customTerms
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+        const contextPayload = {
+          stt_context: sttContext,
+          terms,
+        };
+        ws.send(JSON.stringify(contextPayload));
+        console.log('[WebSocket] ✅ Sent STT context payload:', {
+          hasContext: !!contextPayload.stt_context,
+          termsCount: contextPayload.terms.length,
+        });
+
         setConnectionState('connected');
       };
 
@@ -233,28 +251,29 @@ export default function TranscriptionClient() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-8">
+          <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
             Live Transcription Demo
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-gray-600 dark:text-gray-400 mb-8">
             Real-time speech transcription with multi-provider support
           </p>
 
           {/* Settings */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Service Provider
               </label>
               <select
                 value={service}
                 onChange={(e) => setService(e.target.value as any)}
                 disabled={connectionState !== 'idle'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
               >
+                <option value="scribemd">ScribeMD</option>
                 <option value="deepgram">Deepgram</option>
                 <option value="aws">AWS Transcribe</option>
                 <option value="azure">Azure Speech</option>
@@ -262,27 +281,57 @@ export default function TranscriptionClient() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Language
               </label>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
                 disabled={connectionState !== 'idle'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
               >
                 <option value="en-US">English (US)</option>
                 <option value="en-GB">English (UK)</option>
                 <option value="es-ES">Spanish</option>
                 <option value="fr-FR">French</option>
                 <option value="de-DE">German</option>
-                {service === 'azure' && (
+                {(service === 'azure' || service === 'scribemd') && (
                   <>
                     <option value="he-IL">Hebrew</option>
                     <option value="ar-SA">Arabic</option>
                   </>
                 )}
               </select>
+            </div>
+          </div>
+
+          {/* STT Context & Custom Terms */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                STT Context
+              </label>
+              <textarea
+                value={sttContext}
+                onChange={(e) => setSttContext(e.target.value)}
+                disabled={connectionState !== 'idle'}
+                placeholder="Optional context to improve transcription accuracy..."
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Custom Terms
+              </label>
+              <textarea
+                value={customTerms}
+                onChange={(e) => setCustomTerms(e.target.value)}
+                disabled={connectionState !== 'idle'}
+                placeholder="Comma-separated terms, e.g. acetaminophen, metformin"
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed resize-none"
+              />
             </div>
           </div>
 
@@ -316,7 +365,7 @@ export default function TranscriptionClient() {
           {/* Status Badge */}
           <div className="mb-6">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Status:</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</span>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
                   connectionState === 'idle'
@@ -334,22 +383,22 @@ export default function TranscriptionClient() {
           </div>
 
           {/* Transcript Display */}
-          <div className="bg-gray-50 rounded-lg p-6 min-h-[300px] max-h-[500px] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Transcript</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 min-h-[300px] max-h-[500px] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Transcript</h2>
 
             {transcript.length === 0 && !interimTranscript ? (
-              <p className="text-gray-400 italic">
+              <p className="text-gray-400 dark:text-gray-500 italic">
                 Start transcription to see results here...
               </p>
             ) : (
               <div className="space-y-2">
                 {transcript.map((text, index) => (
-                  <p key={index} className="text-gray-800 leading-relaxed">
+                  <p key={index} className="text-gray-800 dark:text-gray-200 leading-relaxed">
                     {text}
                   </p>
                 ))}
                 {interimTranscript && (
-                  <p className="text-gray-500 italic leading-relaxed">
+                  <p className="text-gray-500 dark:text-gray-400 italic leading-relaxed">
                     {interimTranscript}
                   </p>
                 )}

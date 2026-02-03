@@ -72,7 +72,30 @@ wss://stt.scribemd.ai/v1/listen?access_token=ws-67844d680dfa27...&language=en-US
 - `language` - Language code (required):
   - All providers: `en-US`, `en-GB`, `es-ES`, `fr-FR`, `de-DE`
   - Azure only: `he-IL` (Hebrew), `ar-SA` (Arabic)
-- `service` - Provider: `deepgram`, `aws`, `azure` (required)
+- `service` - Provider: `scribemd` (default), `deepgram`, `aws`, `azure` (required)
+
+---
+
+## STT Context Payload
+
+### Step 2.5: Send Context on Connection Open
+
+When the WebSocket connection opens, the client sends a JSON payload as the **first message** before any audio data. This provides context and custom terminology to improve transcription accuracy.
+
+**Payload:**
+```json
+{
+  "stt_context": "Patient consultation in cardiology department",
+  "terms": ["acetaminophen", "metformin", "echocardiogram"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stt_context` | `string` | Free-text context to guide the STT engine (e.g. medical specialty, meeting type) |
+| `terms` | `string[]` | Custom keywords/terms that may appear in the audio (e.g. drug names, proper nouns) |
+
+Both fields are optional and can be empty (`""` / `[]`).
 
 ---
 
@@ -161,16 +184,19 @@ processor.onaudioprocess = (e) => {
    navigator.mediaDevices.getUserMedia({ audio: true })
    ↓
 4. App connects WebSocket
-   wss://stt.scribemd.ai/v1/listen?access_token=ws-...&service=deepgram&...
+   wss://stt.scribemd.ai/v1/listen?access_token=ws-...&service=scribemd&...
    ↓
-5. App streams raw PCM audio (every ~256ms)
+5. App sends STT context payload (first message)
+   ws.send(JSON.stringify({ stt_context: "...", terms: [...] }))
+   ↓
+6. App streams raw PCM audio (every ~256ms)
    ws.send(pcmData.buffer) // 8192 bytes of Int16 PCM
    ↓
-6. Backend sends transcription results
-   ← { service: "deepgram", transcription: "...", is_final: false }
-   ← { service: "deepgram", transcription: "...", is_final: true }
+7. Backend sends transcription results
+   ← { service: "scribemd", transcription: "...", is_final: false }
+   ← { service: "scribemd", transcription: "...", is_final: true }
    ↓
-7. App displays transcripts in UI
+8. App displays transcripts in UI
 ```
 
 ---
